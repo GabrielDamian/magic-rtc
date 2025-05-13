@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebRTC Audio Call Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        .controls {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f5f5f5;
+            border-radius: 8px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        button:disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        #status {
+            margin: 20px 0;
+            padding: 10px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .success { background: #dff0d8; color: #3c763d; }
+        .error { background: #f2dede; color: #a94442; }
+        .info { background: #d9edf7; color: #31708f; }
+        .connection-status {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        .connected { background-color: #5cb85c; }
+        .connecting { background-color: #f0ad4e; }
+        .disconnected { background-color: #d9534f; }
+        #connectionState {
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        #audioStatus {
+            margin: 10px 0;
+            font-style: italic;
+        }
+        .instructions {
+            background: #fff3cd;
+            border: 1px solid #ffeeba;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .instructions h2 {
+            margin-top: 0;
+            color: #856404;
+        }
+        .instructions ol {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .instructions li {
+            margin: 10px 0;
+        }
+        .current-step {
+            background: #ffe8b3;
+            font-weight: bold;
+            padding: 5px;
+            border-radius: 4px;
+        }
+        .client-selector {
+            text-align: center;
+            margin: 20px 0;
+            padding: 20px;
+            background: #e9ecef;
+            border-radius: 8px;
+        }
+        .client-selector button {
+            padding: 15px 30px;
+            margin: 10px;
+            font-size: 18px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .client-selector button.selected {
+            background: #007bff;
+            color: white;
+        }
+        #mainContent {
+            display: none;
+        }
+        .step-counter {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            background: #856404;
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 24px;
+            margin-right: 10px;
+        }
+        .debug-info {
+            font-family: monospace;
+            font-size: 12px;
+            background: #f8f9fa;
+            padding: 10px;
+            margin-top: 20px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>WebRTC Audio Call Demo</h1>
+
+    <div id="clientSelector" class="client-selector">
+        <h2>Select Your Role</h2>
+        <button id="client1Btn">I am Client 1 (Initiator)</button>
+        <button id="client2Btn">I am Client 2 (Receiver)</button>
+    </div>
+
+    <div id="mainContent">
+        <div class="instructions">
+            <h2>Instructions for <span id="clientRole">Client</span></h2>
+            <div id="client1Instructions" style="display: none;">
+                <ol>
+                    <li id="step1">
+                        <span class="step-counter">1</span>
+                        Click "Create Connection"
+                    </li>
+                    <li id="step2">
+                        <span class="step-counter">2</span>
+                        Click "Start Call" and allow microphone access
+                    </li>
+                    <li id="step3">
+                        <span class="step-counter">3</span>
+                        Wait for the offer to be copied to your clipboard
+                    </li>
+                    <li id="step4">
+                        <span class="step-counter">4</span>
+                        Share the offer with Client 2
+                    </li>
+                    <li id="step5">
+                        <span class="step-counter">5</span>
+                        Wait for Client 2's answer
+                    </li>
+                    <li id="step6">
+                        <span class="step-counter">6</span>
+                        Paste their answer and click "Connect with Peer"
+                    </li>
+                </ol>
+            </div>
+            <div id="client2Instructions" style="display: none;">
+                <ol>
+                    <li id="step1_c2">
+                        <span class="step-counter">1</span>
+                        Click "Create Connection"
+                    </li>
+                    <li id="step2_c2">
+                        <span class="step-counter">2</span>
+                        Wait for Client 1's offer
+                    </li>
+                    <li id="step3_c2">
+                        <span class="step-counter">3</span>
+                        Paste their offer and click "Connect with Peer"
+                    </li>
+                    <li id="step4_c2">
+                        <span class="step-counter">4</span>
+                        Allow microphone access when prompted
+                    </li>
+                    <li id="step5_c2">
+                        <span class="step-counter">5</span>
+                        Share the answer (copied to your clipboard) with Client 1
+                    </li>
+                </ol>
+            </div>
+            <p><strong>Tip:</strong> Use headphones to prevent audio feedback!</p>
+        </div>
+
+        <div id="connectionState">
+            Connection State: <span class="connection-status disconnected"></span><span id="stateText">Not Connected</span>
+        </div>
+        <div id="audioStatus">Audio Status: Waiting for connection...</div>
+
+        <div class="controls">
+            <button id="initiateBtn">Create Connection</button>
+            <button id="callBtn" disabled>Start Call</button>
+            <button id="hangupBtn" disabled>End Call</button>
+        </div>
+
+        <div id="status" class="info">Select your role to begin</div>
+
+        <div class="controls">
+            <h3>Connection Data</h3>
+            <textarea id="dataInput" rows="4" cols="50" placeholder="Paste peer's connection data here"></textarea>
+            <button id="connectBtn">Connect with Peer</button>
+        </div>
+    </div>
+
+    <script>
+        document.body.insertAdjacentHTML('beforeend', '<div id="debugInfo" class="debug-info"></div>');
+        const debugInfo = document.getElementById('debugInfo');
+
+        let localConnection = null;
+        let localStream = null;
+        let dataChannel = null;
+        let remoteStream = new MediaStream();
+        let iceCandidates = [];
+        let isInitiator = false;
+        let selectedRole = null;
+        let connectionTimeout = null;
+        const audioElement = new Audio();
+        audioElement.autoplay = true;
+
+        // Client selection
+        const client1Btn = document.getElementById('client1Btn');
+        const client2Btn = document.getElementById('client2Btn');
+        const clientSelector = document.getElementById('clientSelector');
+        const mainContent = document.getElementById('mainContent');
+        const clientRole = document.getElementById('clientRole');
+        const client1Instructions = document.getElementById('client1Instructions');
+        const client2Instructions = document.getElementById('client2Instructions');
+
+        client1Btn.onclick = () => selectRole('client1');
+        client2Btn.onclick = () => selectRole('client2');
+
+        function selectRole(role) {
+            selectedRole = role;
+            isInitiator = role === 'client1';
+            
+            client1Btn.classList.toggle('selected', role === 'client1');
+            client2Btn.classList.toggle('selected', role === 'client2');
+            clientSelector.style.display = 'none';
+            mainContent.style.display = 'block';
+            
+            clientRole.textContent = role === 'client1' ? 'Client 1 (Initiator)' : 'Client 2 (Receiver)';
+            client1Instructions.style.display = role === 'client1' ? 'block' : 'none';
+            client2Instructions.style.display = role === 'client2' ? 'block' : 'none';
+            
+            callBtn.style.display = role === 'client1' ? 'inline' : 'none';
+            
+            highlightCurrentStep(1);
+            updateStatus('Click "Create Connection" to begin', 'info');
+        }
+
+        const status = document.getElementById('status');
+        const initiateBtn = document.getElementById('initiateBtn');
+        const callBtn = document.getElementById('callBtn');
+        const hangupBtn = document.getElementById('hangupBtn');
+        const dataInput = document.getElementById('dataInput');
+        const connectBtn = document.getElementById('connectBtn');
+        const connectionDot = document.querySelector('.connection-status');
+        const stateText = document.getElementById('stateText');
+        const audioStatus = document.getElementById('audioStatus');
+
+        function updateDebugInfo(message) {
+            debugInfo.style.display = 'block';
+            debugInfo.textContent = message;
+            console.log(message);
+        }
+
+        function highlightCurrentStep(stepNumber) {
+            if (!selectedRole) return;
+
+            const instructionsDiv = selectedRole === 'client1' ? client1Instructions : client2Instructions;
+            instructionsDiv.querySelectorAll('li').forEach(li => {
+                li.classList.remove('current-step');
+            });
+
+            const stepId = selectedRole === 'client1' ? 'step' + stepNumber : 'step' + stepNumber + '_c2';
+            const currentStep = document.getElementById(stepId);
+            if (currentStep) {
+                currentStep.classList.add('current-step');
+            }
+        }
+
+        function updateConnectionState(state) {
+            connectionDot.className = 'connection-status ' + state;
+            stateText.textContent = state.charAt(0).toUpperCase() + state.slice(1);
+        }
+
+        function updateStatus(message, type = 'info') {
+            status.textContent = message;
+            status.className = type;
+            console.log(`Status: ${message}`);
+        }
+
+        async function createConnection() {
+            try {
+                if (localConnection) {
+                    updateStatus('Connection already exists!', 'error');
+                    return;
+                }
+
+                localConnection = new RTCPeerConnection({
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun1.l.google.com:19302' }
+                    ]
+                });
+
+                // Monitor ICE gathering state
+                localConnection.onicegatheringstatechange = () => {
+                    updateDebugInfo(`ICE gathering state: ${localConnection.iceGatheringState}`);
+                };
+
+                // Monitor ICE connection state
+                localConnection.oniceconnectionstatechange = () => {
+                    updateDebugInfo(`ICE connection state: ${localConnection.iceConnectionState}`);
+                    if (localConnection.iceConnectionState === 'connected') {
+                        if (connectionTimeout) {
+                            clearTimeout(connectionTimeout);
+                            connectionTimeout = null;
+                        }
+                        updateStatus('ICE connection established!', 'success');
+                    } else if (localConnection.iceConnectionState === 'failed') {
+                        updateStatus('ICE connection failed. Try refreshing and starting over.', 'error');
+                    }
+                };
+
+                // Monitor connection state
+                localConnection.onconnectionstatechange = () => {
+                    updateDebugInfo(`Connection state: ${localConnection.connectionState}`);
+                    switch(localConnection.connectionState) {
+                        case 'connected':
+                            updateConnectionState('connected');
+                            updateStatus('Successfully connected to peer!', 'success');
+                            audioStatus.textContent = 'Audio Status: Active';
+                            highlightCurrentStep(isInitiator ? 6 : 5);
+                            break;
+                        case 'connecting':
+                            updateConnectionState('connecting');
+                            updateStatus('Connecting to peer...', 'info');
+                            // Set timeout for connection attempt
+                            if (connectionTimeout) clearTimeout(connectionTimeout);
+                            connectionTimeout = setTimeout(() => {
+                                if (localConnection && localConnection.connectionState !== 'connected') {
+                                    updateStatus('Connection attempt timed out. Try refreshing and starting over.', 'error');
+                                    updateConnectionState('disconnected');
+                                }
+                            }, 30000); // 30 second timeout
+                            break;
+                        case 'disconnected':
+                        case 'failed':
+                            updateConnectionState('disconnected');
+                            updateStatus('Connection lost or failed. Try refreshing and starting over.', 'error');
+                            audioStatus.textContent = 'Audio Status: Not connected';
+                            break;
+                    }
+                };
+
+                // Collect ICE candidates
+                localConnection.onicecandidate = event => {
+                    if (event.candidate) {
+                        updateDebugInfo(`New ICE candidate: type=${event.candidate.type}`);
+                        iceCandidates.push(event.candidate);
+                    } else {
+                        updateDebugInfo('ICE gathering complete');
+                        // When ICE gathering is complete, update the offer/answer
+                        if (localConnection.localDescription) {
+                            const description = {
+                                type: localConnection.localDescription.type,
+                                sdp: localConnection.localDescription,
+                                candidates: iceCandidates
+                            };
+                            navigator.clipboard.writeText(JSON.stringify(description));
+                            updateStatus(`Updated ${localConnection.localDescription.type} with ICE candidates copied!`, 'success');
+                        }
+                    }
+                };
+
+                localConnection.ontrack = event => {
+                    updateDebugInfo('Received remote track');
+                    remoteStream.addTrack(event.track);
+                    audioElement.srcObject = remoteStream;
+                };
+
+                // Create data channel
+                if (isInitiator) {
+                    dataChannel = localConnection.createDataChannel('signaling');
+                    setupDataChannel();
+                } else {
+                    localConnection.ondatachannel = event => {
+                        updateDebugInfo('Received data channel');
+                        dataChannel = event.channel;
+                        setupDataChannel();
+                    };
+                }
+
+                initiateBtn.disabled = true;
+                if (isInitiator) {
+                    callBtn.disabled = false;
+                    highlightCurrentStep(2);
+                } else {
+                    highlightCurrentStep(2);
+                }
+                
+                updateStatus(isInitiator ? 'Now click "Start Call"' : 'Waiting for Client 1\'s offer...', 'success');
+                updateConnectionState('connecting');
+
+            } catch (error) {
+                console.error('Error creating connection:', error);
+                updateStatus('Error creating connection: ' + error.message, 'error');
+                updateConnectionState('disconnected');
+            }
+        }
+
+        function setupDataChannel() {
+            if (!dataChannel) return;
+
+            dataChannel.onopen = () => {
+                updateDebugInfo('Data channel opened');
+            };
+
+            dataChannel.onclose = () => {
+                updateDebugInfo('Data channel closed');
+            };
+
+            dataChannel.onerror = (error) => {
+                console.error('Data channel error:', error);
+            };
+
+            dataChannel.onmessage = async event => {
+                try {
+                    const data = JSON.parse(event.data);
+                    updateDebugInfo('Received message: ' + data.type);
+                    if (data.type === 'offer') {
+                        await handleOffer(data);
+                    } else if (data.type === 'answer') {
+                        await handleAnswer(data);
+                    } else if (data.type === 'candidate') {
+                        await handleCandidate(data.candidate);
+                    }
+                } catch (error) {
+                    console.error('Error processing message:', error);
+                    updateStatus('Error processing message: ' + error.message, 'error');
+                }
+            };
+        }
+
+        async function startCall() {
+            try {
+                updateStatus('Requesting microphone access...', 'info');
+                localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                audioStatus.textContent = 'Audio Status: Microphone active';
+                highlightCurrentStep(3);
+                
+                localStream.getTracks().forEach(track => {
+                    localConnection.addTrack(track, localStream);
+                });
+
+                iceCandidates = []; 
+                const offer = await localConnection.createOffer();
+                await localConnection.setLocalDescription(offer);
+                
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                const offerWithCandidates = {
+                    type: 'offer',
+                    sdp: localConnection.localDescription,
+                    candidates: iceCandidates
+                };
+                await navigator.clipboard.writeText(JSON.stringify(offerWithCandidates));
+                updateStatus('Offer copied to clipboard! Share it with Client 2.', 'success');
+                highlightCurrentStep(4);
+                
+                callBtn.disabled = true;
+                hangupBtn.disabled = false;
+            } catch (error) {
+                console.error('Error starting call:', error);
+                updateStatus('Error starting call: ' + error.message, 'error');
+                updateConnectionState('disconnected');
+            }
+        }
+
+        async function handleOffer(data) {
+            try {
+                if (!localConnection) {
+                    await createConnection();
+                }
+
+                await localConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
+                
+                // Add any ICE candidates that came with the offer
+                if (data.candidates && data.candidates.length > 0) {
+                    updateDebugInfo(`Adding ${data.candidates.length} received ICE candidates`);
+                    for (const candidate of data.candidates) {
+                        await localConnection.addIceCandidate(new RTCIceCandidate(candidate));
+                    }
+                }
+
+                highlightCurrentStep(4);
+                
+                updateStatus('Requesting microphone access...', 'info');
+                localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                audioStatus.textContent = 'Audio Status: Microphone active';
+                
+                localStream.getTracks().forEach(track => {
+                    localConnection.addTrack(track, localStream);
+                });
+
+                iceCandidates = []; // Reset candidates for new answer
+                const answer = await localConnection.createAnswer();
+                await localConnection.setLocalDescription(answer);
+                
+                // Wait briefly for initial ICE candidates
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                const answerWithCandidates = {
+                    type: 'answer',
+                    sdp: localConnection.localDescription,
+                    candidates: iceCandidates
+                };
+                await navigator.clipboard.writeText(JSON.stringify(answerWithCandidates));
+                updateStatus('Answer copied to clipboard! Share it with Client 1.', 'success');
+                highlightCurrentStep(5);
+                
+                hangupBtn.disabled = false;
+            } catch (error) {
+                console.error('Error handling offer:', error);
+                updateStatus('Error handling offer: ' + error.message, 'error');
+                updateConnectionState('disconnected');
+            }
+        }
+
+        async function handleAnswer(data) {
+            try {
+                if (!localConnection) {
+                    throw new Error('No connection exists!');
+                }
+                
+                await localConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
+                
+                // Add any ICE candidates that came with the answer
+                if (data.candidates && data.candidates.length > 0) {
+                    updateDebugInfo(`Adding ${data.candidates.length} received ICE candidates`);
+                    for (const candidate of data.candidates) {
+                        await localConnection.addIceCandidate(new RTCIceCandidate(candidate));
+                    }
+                }
+                
+                updateStatus('Connection established! Waiting for audio...', 'success');
+                highlightCurrentStep(6);
+            } catch (error) {
+                console.error('Error handling answer:', error);
+                updateStatus('Error handling answer: ' + error.message, 'error');
+                updateConnectionState('disconnected');
+            }
+        }
+
+        async function connectWithPeer() {
+            try {
+                if (!dataInput.value.trim()) {
+                    updateStatus('Please paste connection data first!', 'error');
+                    return;
+                }
+
+                const data = JSON.parse(dataInput.value);
+                updateDebugInfo('Processing connection data: ' + data.type);
+                
+                if (data.type === 'offer') {
+                    await handleOffer(data);
+                } else if (data.type === 'answer') {
+                    await handleAnswer(data);
+                }
+                dataInput.value = '';
+            } catch (error) {
+                console.error('Error connecting with peer:', error);
+                updateStatus('Error connecting with peer: ' + error.message, 'error');
+                updateConnectionState('disconnected');
+            }
+        }
+
+        function hangUp() {
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
+            if (localConnection) {
+                localConnection.close();
+                localConnection = null;
+            }
+            if (dataChannel) {
+                dataChannel.close();
+                dataChannel = null;
+            }
+            
+            audioElement.srcObject = null;
+            remoteStream = new MediaStream();
+            iceCandidates = [];
+            
+            initiateBtn.disabled = false;
+            callBtn.disabled = true;
+            hangupBtn.disabled = true;
+            
+            updateStatus('Call ended.', 'info');
+            updateConnectionState('disconnected');
+            audioStatus.textContent = 'Audio Status: Call ended';
+            highlightCurrentStep(1);
+        }
+
+        initiateBtn.onclick = createConnection;
+        callBtn.onclick = startCall;
+        hangupBtn.onclick = hangUp;
+        connectBtn.onclick = connectWithPeer;
+    </script>
+</body>
+</html>
