@@ -52,63 +52,6 @@
             margin: 10px 0;
             font-style: italic;
         }
-        .instructions {
-            background: #fff3cd;
-            border: 1px solid #ffeeba;
-            padding: 15px;
-            margin: 20px 0;
-            border-radius: 4px;
-        }
-        .instructions h2 {
-            margin-top: 0;
-            color: #856404;
-        }
-        .instructions ol {
-            margin: 0;
-            padding-left: 20px;
-        }
-        .instructions li {
-            margin: 10px 0;
-        }
-        .current-step {
-            background: #ffe8b3;
-            font-weight: bold;
-            padding: 5px;
-            border-radius: 4px;
-        }
-        .client-selector {
-            text-align: center;
-            margin: 20px 0;
-            padding: 20px;
-            background: #e9ecef;
-            border-radius: 8px;
-        }
-        .client-selector button {
-            padding: 15px 30px;
-            margin: 10px;
-            font-size: 18px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        .client-selector button.selected {
-            background: #007bff;
-            color: white;
-        }
-        #mainContent {
-            display: none;
-        }
-        .step-counter {
-            display: inline-block;
-            width: 24px;
-            height: 24px;
-            background: #856404;
-            color: white;
-            border-radius: 50%;
-            text-align: center;
-            line-height: 24px;
-            margin-right: 10px;
-        }
         .debug-info {
             font-family: monospace;
             font-size: 12px;
@@ -124,88 +67,23 @@
 <body>
     <h1>WebRTC Audio Call Demo</h1>
 
-    <div id="clientSelector" class="client-selector">
-        <h2>Select Your Role</h2>
-        <button id="client1Btn">I am Client 1 (Initiator)</button>
-        <button id="client2Btn">I am Client 2 (Receiver)</button>
+    <div id="connectionState">
+        Connection State: <span class="connection-status disconnected"></span><span id="stateText">Not Connected</span>
+    </div>
+    <div id="audioStatus">Audio Status: Waiting for connection...</div>
+
+    <div class="controls">
+        <button id="initiateBtn">Create Connection</button>
+        <button id="callBtn">Start Call</button>
+        <button id="hangupBtn" disabled>End Call</button>
     </div>
 
-    <div id="mainContent">
-        <div class="instructions">
-            <h2>Instructions for <span id="clientRole">Client</span></h2>
-            <div id="client1Instructions" style="display: none;">
-                <ol>
-                    <li id="step1">
-                        <span class="step-counter">1</span>
-                        Click "Create Connection"
-                    </li>
-                    <li id="step2">
-                        <span class="step-counter">2</span>
-                        Click "Start Call" and allow microphone access
-                    </li>
-                    <li id="step3">
-                        <span class="step-counter">3</span>
-                        Wait for the offer to be copied to your clipboard
-                    </li>
-                    <li id="step4">
-                        <span class="step-counter">4</span>
-                        Share the offer with Client 2
-                    </li>
-                    <li id="step5">
-                        <span class="step-counter">5</span>
-                        Wait for Client 2's answer
-                    </li>
-                    <li id="step6">
-                        <span class="step-counter">6</span>
-                        Paste their answer and click "Connect with Peer"
-                    </li>
-                </ol>
-            </div>
-            <div id="client2Instructions" style="display: none;">
-                <ol>
-                    <li id="step1_c2">
-                        <span class="step-counter">1</span>
-                        Click "Create Connection"
-                    </li>
-                    <li id="step2_c2">
-                        <span class="step-counter">2</span>
-                        Wait for Client 1's offer
-                    </li>
-                    <li id="step3_c2">
-                        <span class="step-counter">3</span>
-                        Paste their offer and click "Connect with Peer"
-                    </li>
-                    <li id="step4_c2">
-                        <span class="step-counter">4</span>
-                        Allow microphone access when prompted
-                    </li>
-                    <li id="step5_c2">
-                        <span class="step-counter">5</span>
-                        Share the answer (copied to your clipboard) with Client 1
-                    </li>
-                </ol>
-            </div>
-            <p><strong>Tip:</strong> Use headphones to prevent audio feedback!</p>
-        </div>
+    <div id="status" class="info">Click "Create Connection" to begin</div>
 
-        <div id="connectionState">
-            Connection State: <span class="connection-status disconnected"></span><span id="stateText">Not Connected</span>
-        </div>
-        <div id="audioStatus">Audio Status: Waiting for connection...</div>
-
-        <div class="controls">
-            <button id="initiateBtn">Create Connection</button>
-            <button id="callBtn" disabled>Start Call</button>
-            <button id="hangupBtn" disabled>End Call</button>
-        </div>
-
-        <div id="status" class="info">Select your role to begin</div>
-
-        <div class="controls">
-            <h3>Connection Data</h3>
-            <textarea id="dataInput" rows="4" cols="50" placeholder="Paste peer's connection data here"></textarea>
-            <button id="connectBtn">Connect with Peer</button>
-        </div>
+    <div class="controls">
+        <h3>Connection Data</h3>
+        <textarea id="dataInput" rows="4" cols="50" placeholder="Paste peer's connection data here"></textarea>
+        <button id="connectBtn">Connect with Peer</button>
     </div>
 
     <script>
@@ -218,41 +96,9 @@
         let remoteStream = new MediaStream();
         let iceCandidates = [];
         let isInitiator = false;
-        let selectedRole = null;
         let connectionTimeout = null;
         const audioElement = new Audio();
         audioElement.autoplay = true;
-
-        // Client selection
-        const client1Btn = document.getElementById('client1Btn');
-        const client2Btn = document.getElementById('client2Btn');
-        const clientSelector = document.getElementById('clientSelector');
-        const mainContent = document.getElementById('mainContent');
-        const clientRole = document.getElementById('clientRole');
-        const client1Instructions = document.getElementById('client1Instructions');
-        const client2Instructions = document.getElementById('client2Instructions');
-
-        client1Btn.onclick = () => selectRole('client1');
-        client2Btn.onclick = () => selectRole('client2');
-
-        function selectRole(role) {
-            selectedRole = role;
-            isInitiator = role === 'client1';
-            
-            client1Btn.classList.toggle('selected', role === 'client1');
-            client2Btn.classList.toggle('selected', role === 'client2');
-            clientSelector.style.display = 'none';
-            mainContent.style.display = 'block';
-            
-            clientRole.textContent = role === 'client1' ? 'Client 1 (Initiator)' : 'Client 2 (Receiver)';
-            client1Instructions.style.display = role === 'client1' ? 'block' : 'none';
-            client2Instructions.style.display = role === 'client2' ? 'block' : 'none';
-            
-            callBtn.style.display = role === 'client1' ? 'inline' : 'none';
-            
-            highlightCurrentStep(1);
-            updateStatus('Click "Create Connection" to begin', 'info');
-        }
 
         const status = document.getElementById('status');
         const initiateBtn = document.getElementById('initiateBtn');
@@ -268,21 +114,6 @@
             debugInfo.style.display = 'block';
             debugInfo.textContent = message;
             console.log(message);
-        }
-
-        function highlightCurrentStep(stepNumber) {
-            if (!selectedRole) return;
-
-            const instructionsDiv = selectedRole === 'client1' ? client1Instructions : client2Instructions;
-            instructionsDiv.querySelectorAll('li').forEach(li => {
-                li.classList.remove('current-step');
-            });
-
-            const stepId = selectedRole === 'client1' ? 'step' + stepNumber : 'step' + stepNumber + '_c2';
-            const currentStep = document.getElementById(stepId);
-            if (currentStep) {
-                currentStep.classList.add('current-step');
-            }
         }
 
         function updateConnectionState(state) {
@@ -310,12 +141,10 @@
                     ]
                 });
 
-                // Monitor ICE gathering state
                 localConnection.onicegatheringstatechange = () => {
                     updateDebugInfo(`ICE gathering state: ${localConnection.iceGatheringState}`);
                 };
 
-                // Monitor ICE connection state
                 localConnection.oniceconnectionstatechange = () => {
                     updateDebugInfo(`ICE connection state: ${localConnection.iceConnectionState}`);
                     if (localConnection.iceConnectionState === 'connected') {
@@ -329,7 +158,6 @@
                     }
                 };
 
-                // Monitor connection state
                 localConnection.onconnectionstatechange = () => {
                     updateDebugInfo(`Connection state: ${localConnection.connectionState}`);
                     switch(localConnection.connectionState) {
@@ -337,19 +165,17 @@
                             updateConnectionState('connected');
                             updateStatus('Successfully connected to peer!', 'success');
                             audioStatus.textContent = 'Audio Status: Active';
-                            highlightCurrentStep(isInitiator ? 6 : 5);
                             break;
                         case 'connecting':
                             updateConnectionState('connecting');
                             updateStatus('Connecting to peer...', 'info');
-                            // Set timeout for connection attempt
                             if (connectionTimeout) clearTimeout(connectionTimeout);
                             connectionTimeout = setTimeout(() => {
                                 if (localConnection && localConnection.connectionState !== 'connected') {
                                     updateStatus('Connection attempt timed out. Try refreshing and starting over.', 'error');
                                     updateConnectionState('disconnected');
                                 }
-                            }, 30000); // 30 second timeout
+                            }, 30000);
                             break;
                         case 'disconnected':
                         case 'failed':
@@ -360,14 +186,12 @@
                     }
                 };
 
-                // Collect ICE candidates
                 localConnection.onicecandidate = event => {
                     if (event.candidate) {
                         updateDebugInfo(`New ICE candidate: type=${event.candidate.type}`);
                         iceCandidates.push(event.candidate);
                     } else {
                         updateDebugInfo('ICE gathering complete');
-                        // When ICE gathering is complete, update the offer/answer
                         if (localConnection.localDescription) {
                             const description = {
                                 type: localConnection.localDescription.type,
@@ -386,27 +210,13 @@
                     audioElement.srcObject = remoteStream;
                 };
 
-                // Create data channel
-                if (isInitiator) {
-                    dataChannel = localConnection.createDataChannel('signaling');
-                    setupDataChannel();
-                } else {
-                    localConnection.ondatachannel = event => {
-                        updateDebugInfo('Received data channel');
-                        dataChannel = event.channel;
-                        setupDataChannel();
-                    };
-                }
+                dataChannel = localConnection.createDataChannel('signaling');
+                setupDataChannel();
 
                 initiateBtn.disabled = true;
-                if (isInitiator) {
-                    callBtn.disabled = false;
-                    highlightCurrentStep(2);
-                } else {
-                    highlightCurrentStep(2);
-                }
+                callBtn.disabled = false;
                 
-                updateStatus(isInitiator ? 'Now click "Start Call"' : 'Waiting for Client 1\'s offer...', 'success');
+                updateStatus('Now click "Start Call"', 'success');
                 updateConnectionState('connecting');
 
             } catch (error) {
@@ -454,7 +264,6 @@
                 updateStatus('Requesting microphone access...', 'info');
                 localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 audioStatus.textContent = 'Audio Status: Microphone active';
-                highlightCurrentStep(3);
                 
                 localStream.getTracks().forEach(track => {
                     localConnection.addTrack(track, localStream);
@@ -472,8 +281,7 @@
                     candidates: iceCandidates
                 };
                 await navigator.clipboard.writeText(JSON.stringify(offerWithCandidates));
-                updateStatus('Offer copied to clipboard! Share it with Client 2.', 'success');
-                highlightCurrentStep(4);
+                updateStatus('Offer copied to clipboard! Share it with your peer.', 'success');
                 
                 callBtn.disabled = true;
                 hangupBtn.disabled = false;
@@ -492,15 +300,12 @@
 
                 await localConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
                 
-                // Add any ICE candidates that came with the offer
                 if (data.candidates && data.candidates.length > 0) {
                     updateDebugInfo(`Adding ${data.candidates.length} received ICE candidates`);
                     for (const candidate of data.candidates) {
                         await localConnection.addIceCandidate(new RTCIceCandidate(candidate));
                     }
                 }
-
-                highlightCurrentStep(4);
                 
                 updateStatus('Requesting microphone access...', 'info');
                 localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -510,11 +315,10 @@
                     localConnection.addTrack(track, localStream);
                 });
 
-                iceCandidates = []; // Reset candidates for new answer
+                iceCandidates = [];
                 const answer = await localConnection.createAnswer();
                 await localConnection.setLocalDescription(answer);
                 
-                // Wait briefly for initial ICE candidates
                 await new Promise(resolve => setTimeout(resolve, 1000));
                 
                 const answerWithCandidates = {
@@ -523,8 +327,7 @@
                     candidates: iceCandidates
                 };
                 await navigator.clipboard.writeText(JSON.stringify(answerWithCandidates));
-                updateStatus('Answer copied to clipboard! Share it with Client 1.', 'success');
-                highlightCurrentStep(5);
+                updateStatus('Answer copied to clipboard! Share it with your peer.', 'success');
                 
                 hangupBtn.disabled = false;
             } catch (error) {
@@ -542,7 +345,6 @@
                 
                 await localConnection.setRemoteDescription(new RTCSessionDescription(data.sdp));
                 
-                // Add any ICE candidates that came with the answer
                 if (data.candidates && data.candidates.length > 0) {
                     updateDebugInfo(`Adding ${data.candidates.length} received ICE candidates`);
                     for (const candidate of data.candidates) {
@@ -551,7 +353,6 @@
                 }
                 
                 updateStatus('Connection established! Waiting for audio...', 'success');
-                highlightCurrentStep(6);
             } catch (error) {
                 console.error('Error handling answer:', error);
                 updateStatus('Error handling answer: ' + error.message, 'error');
@@ -606,7 +407,6 @@
             updateStatus('Call ended.', 'info');
             updateConnectionState('disconnected');
             audioStatus.textContent = 'Audio Status: Call ended';
-            highlightCurrentStep(1);
         }
 
         initiateBtn.onclick = createConnection;
