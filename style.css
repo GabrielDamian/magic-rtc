@@ -1,0 +1,49 @@
+body {
+    font-family: Arial, sans-serif;
+    max-width: 800px;
+    margin: 20px auto;
+    padding: 20px;
+}
+.controls {
+    margin: 20px 0;
+    padding: 20px;
+    background: #f5f5f5;
+    border-radius: 8px;
+}
+button {
+    padding: 10px 20px;
+    margin: 5px;
+    font-size: 16px;
+    cursor: pointer;
+}
+button:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+#status {
+    margin: 20px 0;
+    padding: 10px;
+    border-radius: 4px;
+    font-weight: bold;
+}
+.success { background: #dff0d8; color: #3c763d; }
+.error { background: #f2dede; color: #a94442; }
+.info { background: #d9edf7; color: #31708f; }
+.connection-status {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 10px;
+}
+.connected { background-color: #5cb85c; }
+.connecting { background-color: #f0ad4e; }
+.disconnected { background-color: #d9534f; }
+#connectionState {
+    margin: 10px 0;
+    font-weight: bold;
+}
+#audioStatus {
+    margin: 10px 0;
+    font-style: italic;
+}
